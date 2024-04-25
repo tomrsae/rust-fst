@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust-fst"
+name = "rust_fsm_proc"
 version = "0.1.0"
 dependencies = [
  "quote",

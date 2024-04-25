@@ -6,7 +6,8 @@ version = 3
 name = "example"
 version = "0.1.0"
 dependencies = [
- "rust-fst",
+ "rust_fsm_base",
+ "rust_fsm_proc",
 ]
 
 [[package]]
@@ -28,7 +29,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust-fst"
+name = "rust_fsm_base"
+version = "0.1.0"
+
+[[package]]
+name = "rust_fsm_proc"
 version = "0.1.0"
 dependencies = [
  "quote",
