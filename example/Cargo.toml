@@ -6,5 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rust_fsm_proc = { path = "../rust_fsm_proc" }
-rust_fsm_base = { path = "../rust_fsm_base" }
+rsfsm_proc = { path = "../rsfsm_proc" }
+rsfsm_base = { path = "../rsfsm_base" }
