@@ -18,7 +18,7 @@ make_fsm!{
     // and implement the `State` trait, making them capable
     // of handling events, as well as having enter/exit handlers
     states: [
-        Locked, // first state in array is the initial state
+        Locked,
         Unlocked
     ]
 }
