@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 rsfsm_proc = { path = "../rsfsm_proc" }
-rsfsm_base = { path = "../rsfsm_base" }
+expand = "0.3.0"
