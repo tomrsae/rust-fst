@@ -1,6 +1,6 @@
 use proc_macro2::Span;
 use syn::{
-    parse::{ Parse, ParseStream, Parser }, punctuated::Punctuated, Error, Ident, Result, Token
+    parse::{ Parse, ParseStream, Parser }, punctuated::Punctuated, Error, Ident, Result, Token, Type
 };
 
 fn parse_group<T: Parse>(stream: ParseStream) -> Result<Vec<T>> {
@@ -60,15 +60,18 @@ impl Parse for State {
 
 #[derive(Clone)]
 pub struct Event {
-    pub ident: Ident
+    pub ident: Ident,
+    pub parameters: Vec<Type>
 }
 
 impl Parse for Event {
     fn parse(input: ParseStream) -> Result<Self> {
         let ident: Ident = input.parse()?;
+        let parameters: Vec<Type> = parse_group(input)?;
 
         Ok(Self {
-            ident
+            ident,
+            parameters
         })
     }
 }
@@ -114,6 +117,5 @@ impl Parse for FiniteStateMachine {
             states,
             events
         })
-
     }
 }

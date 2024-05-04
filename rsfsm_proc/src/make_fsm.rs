@@ -1,9 +1,9 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
-use syn::parse_macro_input;
+use syn::{parse_macro_input, spanned::Spanned, Ident};
 
-use crate::fsm::FiniteStateMachine;
+use crate::parsers::FiniteStateMachine;
 
 trait VecTokenizeable<T> {
     fn to_tokens<F: FnMut(&T) -> TokenStream2>
@@ -19,13 +19,18 @@ impl<T> VecTokenizeable<T> for Vec<T> {
 pub fn impl_make_fsm(tokens: TokenStream) -> TokenStream {
     let fsm_tree = parse_macro_input!(tokens as FiniteStateMachine);
 
-    let ident = &fsm_tree.ident;
-    let ident_error = format_ident!("{}Error", ident);
+    let fsm_ident = &fsm_tree.ident;
+    let error_ident = format_ident!("{}Error", fsm_ident);
     
     let event_idents
         =  fsm_tree.events.to_tokens(|x| {
             let ident = &x.ident;
-            quote!(#ident)
+            let params = &x.parameters;
+            if params.len() > 0 {
+                quote!(#ident(#(#params,)*))
+            } else {
+                quote!(#ident)
+            }
         });
     
     let state_enums
@@ -49,19 +54,38 @@ pub fn impl_make_fsm(tokens: TokenStream) -> TokenStream {
         });
 
     let state_enum_idents
-        = fsm_tree
-            .states.to_tokens(|x| {
-                let states_ident = &x.ident;
-                let ident = format_ident!("{}State", states_ident);
-                quote!(#ident)
-            });
+        = fsm_tree.states.to_tokens(|x| {
+            let states_ident = &x.ident;
+            let ident = format_ident!("{}State", states_ident);
+            quote!(#ident)
+        });
 
-    let event_methods
+    let event_methods: Vec<TokenStream2>
         = fsm_tree.events.to_tokens(|x| {
             let ident = &x.ident;
-            quote! {
-                fn #ident(&mut self) -> Result<(), #ident_error> {
-                    self.handle_event(Event::#ident)
+            if x.parameters.len() > 0 {
+                let param_types = &x.parameters;
+                let param_idents: Vec<Ident>
+                    = x.parameters
+                        .iter()
+                        .enumerate()
+                        .map(|(i, t)| {
+                            Ident::new(&format!("p{}", i), t.span())
+                        })
+                        .collect();
+    
+                let param_idents_ts = quote!(#(#param_idents,)*);
+    
+                quote! {
+                    fn #ident(&mut self, #(#param_idents: #param_types,)*) -> Result<(), #error_ident> {
+                        self.handle_event(Event::#ident(#param_idents_ts))
+                    }
+                }
+            } else {
+                quote! {
+                    fn #ident(&mut self) -> Result<(), #error_ident> {
+                        self.handle_event(Event::#ident)
+                    }
                 }
             }
         });
@@ -69,23 +93,23 @@ pub fn impl_make_fsm(tokens: TokenStream) -> TokenStream {
     let expanded = quote! {
 
         #[derive(Debug, Clone)]
-        struct #ident_error {
+        struct #error_ident {
             err: String
         }
 
-        impl #ident_error {
+        impl #error_ident {
             fn new(error: &str) -> Self {
-                #ident_error { err: error.to_owned() }
+                #error_ident { err: error.to_owned() }
             }
         }
 
-        impl std::fmt::Display for #ident_error {
+        impl std::fmt::Display for #error_ident {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 write!(f, "{}", &self.err)
             }
         }
 
-        type EventOutcome = Result<Option<Transition>, #ident_error>;
+        type EventOutcome = Result<Option<Transition>, #error_ident>;
 
         trait State {
             fn enter(&mut self);
@@ -123,11 +147,11 @@ pub fn impl_make_fsm(tokens: TokenStream) -> TokenStream {
             #(#state_enums,)*
         }
 
-        struct #ident {
+        struct #fsm_ident {
             states: InternalStates
         }
 
-        impl #ident {
+        impl #fsm_ident {
             fn new(init: Transition) -> Self {
                 let mut result = Self { states: init.target };
                 result.get_current_state().enter();
@@ -136,12 +160,13 @@ pub fn impl_make_fsm(tokens: TokenStream) -> TokenStream {
 
             fn get_current_state(&mut self) -> &mut dyn State {
                 use InternalStates::*;
+                // No idiomatic way to equally "extract" all enum values
                 match &mut self.states {
                     #(#state_enum_idents(state) => state,)*
                 }
             }
 
-            fn handle_event(&mut self, e: Event) -> Result<(), #ident_error> {
+            fn handle_event(&mut self, e: Event) -> Result<(), #error_ident> {
                 let current_state = self.get_current_state();
                 let event_result = current_state.handle_event(e)?;
                 

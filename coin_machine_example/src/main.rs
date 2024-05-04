@@ -10,9 +10,9 @@ make_fsm!{
     // and may be called to invoke events
     // (e.g. CoinMachine::push(&mut self) in this case).
     events: [
-        push,
-        insert_coin,
-        see_balance
+        push(),
+        insert_coins(u8),
+        see_balance()
     ],
 
     // The state names listed here must exist as structs
@@ -31,17 +31,15 @@ fn run_example() -> Result<(), CoinMachineError> {
     
     fsm.push()?; // no-op
     fsm.push()?; // no-op
-    fsm.insert_coin()?; // no-op, currently 1 coin
-    fsm.insert_coin()?; // no-op, currently 2 coin
-    fsm.insert_coin()?; // transition to unlocked
-    fsm.insert_coin()?; // no-op (wasted coin)
+    fsm.insert_coins(2)?; // no-op, currently 2/3 coins
+    fsm.insert_coins(1)?; // transition to unlocked
+    fsm.insert_coins(5)?; // no-op (wasted coins)
     fsm.push()?; // transition to locked
     fsm.push()?; // no-op
 
-    fsm.insert_coin()?; // no-op, currently 1 coin
-    fsm.insert_coin()?; // no-op, currently 2 coin
+    fsm.insert_coins(1)?; // no-op, currently 1/3 coins
     fsm.see_balance()?; // no-op (prints balance)
-    fsm.insert_coin()?; // transition to unlocked
+    fsm.insert_coins(2)?; // transition to unlocked
 
     fsm.see_balance()?; // error
 
@@ -72,9 +70,9 @@ impl State for Locked {
     fn handle_event(&mut self, e: Event) -> EventOutcome {
         let mut result = None;
         match e {
-            Event::insert_coin => {
-                println!("Received & accepted coin!");
-                self.coins += 1;
+            Event::insert_coins(num) => {
+                println!("Received & accepted {} coins!", num);
+                self.coins += num;
 
                 if self.coins >= 3 {
                     result = Some(Transition::to(Unlocked { }))
@@ -105,8 +103,8 @@ impl State for Unlocked {
                 println!("Pushed, locking!");
                 Ok(Some(Transition::to(Locked { coins: 0 })))
             }
-            Event::insert_coin => {
-                println!("Wasted money :(");
+            Event::insert_coins(num) => {
+                println!("Wasted {} coins!! :(", num);
                 Ok(None)
             }
             Event::see_balance => Err(CoinMachineError::new("No balance available"))

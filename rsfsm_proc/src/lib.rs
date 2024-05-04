@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 
 mod make_fsm;
-mod fsm;
+mod parsers;
 
 #[proc_macro]
 pub fn make_fsm(tokens: TokenStream) -> TokenStream {
