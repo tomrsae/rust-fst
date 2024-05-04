@@ -11,7 +11,8 @@ make_fsm!{
     // (e.g. CoinMachine::push(&mut self) in this case).
     events: [
         push,
-        insert_coin
+        insert_coin,
+        see_balance
     ],
 
     // The state names listed here must exist as structs
@@ -23,19 +24,36 @@ make_fsm!{
     ]
 }
 
-fn main() {
+fn run_example() -> Result<(), CoinMachineError> {
     // Passing in an initial transition to set parameterized initial state
     let init = Transition::to(Locked{ coins: 0 });
     let mut fsm = CoinMachine::new(init);
     
-    fsm.push(); // no-op
-    fsm.push(); // no-op
-    fsm.insert_coin(); // no-op, currently 1 coin
-    fsm.insert_coin(); // no-op, currently 2 coin
-    fsm.insert_coin(); // transition to unlocked
-    fsm.insert_coin(); // no-op (wasted coin)
-    fsm.push(); // transition to locked
-    fsm.push(); // no-op
+    fsm.push()?; // no-op
+    fsm.push()?; // no-op
+    fsm.insert_coin()?; // no-op, currently 1 coin
+    fsm.insert_coin()?; // no-op, currently 2 coin
+    fsm.insert_coin()?; // transition to unlocked
+    fsm.insert_coin()?; // no-op (wasted coin)
+    fsm.push()?; // transition to locked
+    fsm.push()?; // no-op
+
+    fsm.insert_coin()?; // no-op, currently 1 coin
+    fsm.insert_coin()?; // no-op, currently 2 coin
+    fsm.see_balance()?; // no-op (prints balance)
+    fsm.insert_coin()?; // transition to unlocked
+
+    fsm.see_balance()?; // error
+
+    fsm.push()?; // won't execute because previous error was propogated
+
+    Ok(())
+}
+
+fn main() {
+    if let Some(err) = run_example().err() {
+        println!("Error occured: {}", err);
+    }
 }
 
 struct Locked {
@@ -51,7 +69,7 @@ impl State for Locked {
         println!("🔒(L) =>");
     }
 
-    fn handle_event(&mut self, e: Event) -> Option<Transition> {
+    fn handle_event(&mut self, e: Event) -> EventOutcome {
         let mut result = None;
         match e {
             Event::insert_coin => {
@@ -62,10 +80,11 @@ impl State for Locked {
                     result = Some(Transition::to(Unlocked { }))
                 }
             }
+            Event::see_balance => println!("Current balance: {}", &self.coins),
             _ => println!("Pushed while locked..")
         }
 
-        result
+        Ok(result)
     }
 }
 
@@ -80,16 +99,17 @@ impl State for Unlocked {
         println!("🔓(U) =>");
     }
 
-    fn handle_event(&mut self, e: Event) -> Option<Transition> {
+    fn handle_event(&mut self, e: Event) -> EventOutcome {
         match e {
             Event::push => {
                 println!("Pushed, locking!");
-                Some(Transition::to(Locked { coins: 0 }))
+                Ok(Some(Transition::to(Locked { coins: 0 })))
             }
             Event::insert_coin => {
                 println!("Wasted money :(");
-                None
+                Ok(None)
             }
+            Event::see_balance => Err(CoinMachineError::new("No balance available"))
         }
     }
 }

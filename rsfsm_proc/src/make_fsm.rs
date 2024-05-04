@@ -18,6 +18,9 @@ impl<T> VecTokenizeable<T> for Vec<T> {
 
 pub fn impl_make_fsm(tokens: TokenStream) -> TokenStream {
     let fsm_tree = parse_macro_input!(tokens as FiniteStateMachine);
+
+    let ident = &fsm_tree.ident;
+    let ident_error = format_ident!("{}Error", ident);
     
     let event_idents
         =  fsm_tree.events.to_tokens(|x| {
@@ -57,22 +60,40 @@ pub fn impl_make_fsm(tokens: TokenStream) -> TokenStream {
         = fsm_tree.events.to_tokens(|x| {
             let ident = &x.ident;
             quote! {
-                fn #ident(&mut self) {
+                fn #ident(&mut self) -> Result<(), #ident_error> {
                     self.handle_event(Event::#ident)
                 }
             }
         });
 
-    let ident = &fsm_tree.ident;
-
     let expanded = quote! {
+
+        #[derive(Debug, Clone)]
+        struct #ident_error {
+            err: String
+        }
+
+        impl #ident_error {
+            fn new(error: &str) -> Self {
+                #ident_error { err: error.to_owned() }
+            }
+        }
+
+        impl std::fmt::Display for #ident_error {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "{}", &self.err)
+            }
+        }
+
+        type EventOutcome = Result<Option<Transition>, #ident_error>;
+
         trait State {
             fn enter(&mut self);
         
             fn exit(&mut self);
 
             fn handle_event(&mut self, e: Event)
-                -> Option<Transition>;
+                -> EventOutcome;
         }
 
         #[allow(non_camel_case_types)]
@@ -86,9 +107,7 @@ pub fn impl_make_fsm(tokens: TokenStream) -> TokenStream {
 
         impl Transition {
             fn to<T: ResolvableState>(state: T) -> Transition {
-                Transition {
-                    target: state.resolve()
-                }
+                Transition { target: state.resolve() }
             }
         }
 
@@ -122,9 +141,9 @@ pub fn impl_make_fsm(tokens: TokenStream) -> TokenStream {
                 }
             }
 
-            fn handle_event(&mut self, e: Event) {
+            fn handle_event(&mut self, e: Event) -> Result<(), #ident_error> {
                 let current_state = self.get_current_state();
-                let event_result = current_state.handle_event(e);
+                let event_result = current_state.handle_event(e)?;
                 
                 if event_result.is_some() {
                     current_state.exit();
@@ -134,6 +153,8 @@ pub fn impl_make_fsm(tokens: TokenStream) -> TokenStream {
 
                     self.get_current_state().enter();
                 }
+
+                Ok(())
             }
 
             #(#event_methods)*
