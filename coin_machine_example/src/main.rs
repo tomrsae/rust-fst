@@ -1,3 +1,17 @@
+/// ------------------------------------------------------------
+/// File: coin_machine_example/main.rs
+/// Author: Tommy Sætre
+/// Description:
+///     Uses the make_fsm proc macro to implement a very
+///     simple coin machine inspired by a coin-based turnstile
+///     machine as desrbired by Wikipedia's FSM page:
+///     (https://en.wikipedia.org/wiki/Finite-state_machine#/media/File:Turnstile_state_machine_colored.svg)
+/// 
+///     However, expands upon the diagram to demonstrate use of
+///     more advanced features of the library such as parameterized
+///     events and error handling.
+/// ------------------------------------------------------------
+
 use rsfsm_proc::make_fsm;
 
 make_fsm!{
@@ -11,7 +25,7 @@ make_fsm!{
     // (e.g. CoinMachine::push(&mut self) in this case).
     events: [
         push(),
-        insert_coins(u8),
+        insert_coins(u8), // events may be parametric (but must take ownership!)
         see_balance()
     ],
 

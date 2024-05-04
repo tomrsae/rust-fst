@@ -1,3 +1,9 @@
+/// ------------------------------------------------------------
+/// File: lib.rs
+/// Author: Tommy Sætre
+/// Description: Main interface for rsfsm proc library
+/// ------------------------------------------------------------
+
 use proc_macro::TokenStream;
 
 mod make_fsm;

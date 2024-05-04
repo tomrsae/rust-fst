@@ -1,3 +1,11 @@
+/// ------------------------------------------------------------
+/// /// File: make_fsm.rs
+/// Author: Tommy Sætre
+/// Description:
+///     Implements the make_fsm proc macro, defining
+///     tokenizers and implementing the solution.
+/// ------------------------------------------------------------
+
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
@@ -63,29 +71,26 @@ pub fn impl_make_fsm(tokens: TokenStream) -> TokenStream {
     let event_methods: Vec<TokenStream2>
         = fsm_tree.events.to_tokens(|x| {
             let ident = &x.ident;
-            if x.parameters.len() > 0 {
-                let param_types = &x.parameters;
-                let param_idents: Vec<Ident>
-                    = x.parameters
-                        .iter()
-                        .enumerate()
-                        .map(|(i, t)| {
-                            Ident::new(&format!("p{}", i), t.span())
-                        })
-                        .collect();
-    
-                let param_idents_ts = quote!(#(#param_idents,)*);
-    
-                quote! {
-                    fn #ident(&mut self, #(#param_idents: #param_types,)*) -> Result<(), #error_ident> {
-                        self.handle_event(Event::#ident(#param_idents_ts))
-                    }
-                }
+            let param_types = &x.parameters;
+            // Generate valid parameters for event invocation method
+            let param_idents: Vec<Ident>
+                = x.parameters
+                    .iter()
+                    .enumerate()
+                    .map(|(i, t)| {
+                        Ident::new(&format!("p{}", i), t.span())
+                    })
+                    .collect();
+            
+            let event = if param_idents.len() > 0 {
+                quote!(Event::#ident(#(#param_idents,)*))
             } else {
-                quote! {
-                    fn #ident(&mut self) -> Result<(), #error_ident> {
-                        self.handle_event(Event::#ident)
-                    }
+                quote!(Event::#ident)
+            };
+
+            quote! {
+                fn #ident(&mut self, #(#param_idents: #param_types,)*) -> Result<(), #error_ident> {
+                    self.handle_event(#event)
                 }
             }
         });
@@ -137,7 +142,7 @@ pub fn impl_make_fsm(tokens: TokenStream) -> TokenStream {
 
         // Used to "hide" `InternalStates` from user and
         // hence enable a clean Transition::to(State) API 
-        trait ResolvableState {
+        trait ResolvableState : State {
             fn resolve(self) -> InternalStates;
         }
 
@@ -165,11 +170,12 @@ pub fn impl_make_fsm(tokens: TokenStream) -> TokenStream {
                     #(#state_enum_idents(state) => state,)*
                 }
             }
-
+        
             fn handle_event(&mut self, e: Event) -> Result<(), #error_ident> {
                 let current_state = self.get_current_state();
                 let event_result = current_state.handle_event(e)?;
                 
+                // Invoke enter/exit handles before/after (respectively) changing states
                 if event_result.is_some() {
                     current_state.exit();
 

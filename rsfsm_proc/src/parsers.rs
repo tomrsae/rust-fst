@@ -1,8 +1,23 @@
+/// ------------------------------------------------------------
+/// File: parsers.rs
+/// Author: Tommy Sætre
+/// Description:
+///     Implements parsers for the proc macros.
+///     Enables an enforced struct/JSON-like
+///     syntax tree for state machines.
+/// AI notice:
+///     Group parsing (prase_group) was heavily inspired by 
+///     the crate sfsm (https://docs.rs/sfsm/0.4.3/sfsm/index.html)'s
+///     group parsing implementation.
+/// ------------------------------------------------------------
+
 use proc_macro2::Span;
 use syn::{
     parse::{ Parse, ParseStream, Parser }, punctuated::Punctuated, Error, Ident, Result, Token, Type
 };
 
+// Parse comma-separated groups delimited by [], () or {} and receive elements as a vector
+// AI notice: Heavily inspired by sfsm's implementation (https://docs.rs/sfsm/0.4.3/sfsm/index.html)
 fn parse_group<T: Parse>(stream: ParseStream) -> Result<Vec<T>> {
     let group: proc_macro2::Group = stream.parse()?;
     let parser = Punctuated::<T, Token![,]>::parse_terminated;
@@ -99,23 +114,26 @@ impl Parse for FiniteStateMachine {
             }
         }
 
-        let ident = match ident_opt {
-            Some(n) => n,
-            None => return Err(Error::new(Span::call_site(), "No name specified"))
-        };
+        let err_opt: Option<&str> = {
+            if ident_opt.is_none() {
+                Some("No name specified")
+            } else if states.len() < 1 {
+                Some("No states specified")
+            } else if events.len() < 1 {
+                Some("No events specified")
+            } else {
+                None
+            }
+        };        
 
-        if states.len() < 1 {
-            return Err(Error::new(Span::call_site(), "No states specified"))
+        if let Some(err) = err_opt {
+            Err(Error::new(Span::call_site(), err))
+        } else {
+            Ok(Self {
+                ident: ident_opt.unwrap(),
+                states,
+                events
+            })
         }
-
-        if events.len() < 1 {
-            return Err(Error::new(Span::call_site(), "No events specified"))
-        }
-
-        Ok(Self {
-            ident,
-            states,
-            events
-        })
     }
 }
