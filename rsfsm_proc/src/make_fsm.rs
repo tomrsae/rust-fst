@@ -1,35 +1,39 @@
 use proc_macro::TokenStream;
+use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::parse_macro_input;
 
 use crate::fsm::FiniteStateMachine;
 
+trait VecTokenizeable<T> {
+    fn to_tokens<F: FnMut(&T) -> TokenStream2>
+        (&self, mapping: F) -> Vec<TokenStream2>;
+}
+
+impl<T> VecTokenizeable<T> for Vec<T> {
+    fn to_tokens<F: FnMut(&T) -> TokenStream2>(&self, mapping: F) -> Vec<TokenStream2> {
+        self.iter().map(mapping).collect()
+    }
+}
+
 pub fn impl_make_fsm(tokens: TokenStream) -> TokenStream {
     let fsm_tree = parse_macro_input!(tokens as FiniteStateMachine);
-
-    let event_idents: Vec<_> = fsm_tree
-        .events
-        .iter()
-        .map(|x| {
+    
+    let event_idents
+        =  fsm_tree.events.to_tokens(|x| {
             let ident = &x.ident;
             quote!(#ident)
-        })
-        .collect();
+        });
     
-    let state_enums: Vec<_> = fsm_tree
-        .states
-        .iter()
-        .map(|x| {
-            let state_ident = &x.ident;
-            let ident = format_ident!("{}State", state_ident);
-            quote!(#ident(#state_ident))
-        })
-        .collect();
+    let state_enums
+        = fsm_tree.states.to_tokens(|x| {
+            let ident = &x.ident;
+            let states_ident = format_ident!("{}State", ident);
+            quote!(#states_ident(#ident))
+        });
 
-    let state_resolvables: Vec<_> = fsm_tree
-        .states
-        .iter()
-        .map(|x| {
+    let state_resolvables
+        = fsm_tree.states.to_tokens(|x| {
             let ident = &x.ident;
             let states_ident = format_ident!("{}State", ident);
             quote!{
@@ -39,31 +43,25 @@ pub fn impl_make_fsm(tokens: TokenStream) -> TokenStream {
                     }
                 }
             }
-        })
-        .collect();
+        });
 
-    let state_enum_idents: Vec<_> = fsm_tree
-        .states
-        .iter()
-        .map(|x| {
-            let state_ident = &x.ident;
-            let ident = format_ident!("{}State", state_ident);
-            quote!(#ident)
-        })
-        .collect();
+    let state_enum_idents
+        = fsm_tree
+            .states.to_tokens(|x| {
+                let states_ident = &x.ident;
+                let ident = format_ident!("{}State", states_ident);
+                quote!(#ident)
+            });
 
-    let event_methods: Vec<_> = fsm_tree
-        .events
-        .iter()
-        .map(|x| {
+    let event_methods
+        = fsm_tree.events.to_tokens(|x| {
             let ident = &x.ident;
             quote! {
                 fn #ident(&mut self) {
                     self.handle_event(Event::#ident)
                 }
             }
-        })
-        .collect();
+        });
 
     let ident = &fsm_tree.ident;
 
@@ -133,7 +131,7 @@ pub fn impl_make_fsm(tokens: TokenStream) -> TokenStream {
 
                     let target = event_result.unwrap().target;
                     self.states = target;
-                    
+
                     self.get_current_state().enter();
                 }
             }
