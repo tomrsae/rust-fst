@@ -1,4 +1,4 @@
-/// ------------------------------------------------------------
+/// ---------------------------------------------------------------------------------------------------------
 /// File: coin_machine_example/main.rs
 /// Author: Tommy Sætre
 /// Description:
@@ -10,7 +10,19 @@
 ///     However, expands upon the diagram to demonstrate use of
 ///     more advanced features of the library such as parameterized
 ///     events and error handling.
-/// ------------------------------------------------------------
+/// 
+///     Concept that is implemented in this example:
+///     
+///              ┌──────────────┐   insert_coin (3x)  ┌────────────────┐  
+///         ┌──▶│              │───────────────────▶│                │◀──┐
+///    push │    │    Locked    │                     │    Unlocked    │    │ insert_coin
+///         └────│              │◀───────────────────│                │────┘
+///              └───────┬──────┘         push        └────────┬───────┘
+///                 ▲    │                                     │
+///                 └────┘                                     └────────────▶ ERROR
+///               see_balance                                   see_balance
+/// 
+/// ---------------------------------------------------------------------------------------------------------
 
 use rsfsm_proc::make_fsm;
 

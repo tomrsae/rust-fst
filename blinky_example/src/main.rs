@@ -1,4 +1,4 @@
-/// ------------------------------------------------------------
+/// ---------------------------------------------------------------------
 /// File: blinky_example/main.rs
 /// Author: Tommy Sætre
 /// Description:
@@ -24,7 +24,8 @@
 ///     │     └───────────────┘     │───────────┘        
 ///     └───────────────────────────┘                   
 ///     CREDIT: mdeloof @ https://github.com/mdeloof/statig
-/// ------------------------------------------------------------
+/// 
+/// ---------------------------------------------------------------------
 
 use rsfsm_proc::make_fsm;
 
@@ -87,8 +88,10 @@ impl State for Blinking {
     fn handle_event(&mut self, e:Event) -> EventOutcome {
         match &e {
             Event::timer_elapsed => {
+                // Toggle LED
                 self.led_on = !self.led_on;
 
+                // Print the state that was toggled
                 let state_str = if self.led_on { "ON" } else { "OFF" };
                 println!("💡 {}", state_str);
 
@@ -104,7 +107,7 @@ impl State for Blinking {
 }
 
 struct NotBlinking {
-    stored_led_state: bool
+    stored_led_state: bool // Keeps system state from Blinking state stored
 }
 impl State for NotBlinking {
     fn enter(&mut self) {
